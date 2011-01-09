@@ -94,27 +94,38 @@ def createTemporaryFile(file_name):
     print "(2) created temporary file  %s" % file_name_tmp
     return (file_name_tmp, file_handle_tmp)
 
-def wipeFile(name):
-    print "(2) wiping %s" % name
-    if os.path.exists(name):
-        try:
-            handle = open(name, mode="r+b")
-            handle.seek(0, 2) #SEEK_END
-            size = handle.tell()
-            handle.seek(0)
-            for i in range (0, size):
-                handle.write(chr(random.getrandbits(8)))
-            print "(2) sync to disk"
-            handle.flush()
-            os.fsync(handle.fileno())
-            handle.close()
-            print "(2) unlinking wiped file"
-            os.unlink(name)
-        except:
-            print "(0) could not wipe file %s (file is locked or wrong permissions)" % name
-    else:
-        print "(2) file %s does not exist" % name
 
+class WipeFileThread(threading.Thread):
+    def __init__(self, file_name):
+        threading.Thread.__init__(self)
+        self.file_name = file_name
+        self.start()
+
+    def run(self):
+        BLOCK_SIZE = 8192
+        print "(2) wiping %s" % self.file_name
+        if os.path.exists(self.file_name):
+            try:
+                handle = open(self.file_name, mode="r+b")
+                handle.seek(0, 2) #SEEK_END
+                size = handle.tell()
+                handle.seek(0)
+                blocks = size / BLOCK_SIZE + 1
+                for i in range(blocks):
+                    handle.write(os.urandom(BLOCK_SIZE))
+                print "(2) sync to disk"
+                handle.flush()
+                os.fsync(handle.fileno())
+                handle.close()
+                print "(2) unlinking wiped file"
+                os.unlink(self.file_name)
+            except:
+                print "(0) could not wipe file %s (file is locked or wrong permissions)" % self.file_name
+        else:
+            print "(2) file %s does not exist" % self.file_name
+
+def wipeFile(file_name):
+    WipeFileThread(file_name)
 
 #--- ### Client API
 
@@ -986,7 +997,11 @@ class FileReceiver:
         except:
             pass
         self.sendStopMessage()
-        self.file_name_save = ""
+        if self.file_name_save:
+            self.file_handle_save.close()
+            print "(2) unlinking empty placeholder file %s" % self.file_name_save
+            os.unlink(self.file_name_save) #its still empty, no wiping needed
+            self.file_name_save = ""
         self.close()
 
     def close(self):
@@ -1007,11 +1022,11 @@ class FileReceiver:
                 shutil.copy(self.file_name_tmp, self.file_name_save)
                 print "(2) copied file to %s" % self.file_name_save
 
+            print "(2) wiping received temporary file data"
             wipeFile(self.file_name_tmp)
             del self.buddy.bl.file_receiver[self.buddy.address, self.id]
         except:
-            pass
-
+            tb() #TODO: what could go wrong here? Why did I use try/except?
 
 
 #--- ### Protocol messages
@@ -1690,18 +1705,18 @@ class InConnection:
         self.close()
 
     def close(self):
-        if not self.started:
-            return
+        print "(2) in-connection closing %s" % self.last_ping_address
+
         try:
             self.socket.shutdown(socket.SHUT_RDWR)
         except:
-            pass
+            print "(3) socket.shutdown() %s" % sys.exc_info()[1]
         try:
             self.socket.close()
         except:
-            pass
+            print "(3) socket.close() %s" % sys.exc_info()[1]
+
         self.started = False
-        print "(2) in-connection closing %s" % self.last_ping_address
         if self in self.bl.listener.conns:
             self.bl.listener.conns.remove(self)
         if self.buddy:
@@ -1758,23 +1773,19 @@ class OutConnection(threading.Thread):
         self.close()
 
     def close(self):
-        if not self.running:
-            return
         self.running = False
         self.send_buffer = []
         try:
             self.socket.shutdown(socket.SHUT_RDWR)
         except:
-            pass
+            print "(3) socket.shutdown() %s" % sys.exc_info()[1]
         try:
             self.socket.close()
         except:
-            pass
-        if self.buddy:
-            self.buddy.conn_out = None
-            print "(2) out-connection closing (%s)" % self.buddy.address
-        else:
-            print "(2) out-connection closing (without buddy)"
+            print "(3) socket.close() %s" % sys.exc_info()[1]
+
+        self.buddy.conn_out = None
+        print "(2) out-connection closed (%s)" % self.buddy.address
 
 
 class Listener(threading.Thread):
@@ -1830,6 +1841,8 @@ class Listener(threading.Thread):
                 else:
                     print "(2) closing unused in-connection from %s" % conn.last_ping_address
                     conn.close()
+                if conn in self.conns:
+                    self.conns.remove(conn)
                 print "(2) have now %i incoming connections" % len(self.conns)
         self.startTimer()
 
