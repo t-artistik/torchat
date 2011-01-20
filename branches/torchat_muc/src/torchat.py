@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
+# vim: set sw=4 sts=4 expandtab:
 
 ##############################################################################
 #                                                                            #
@@ -15,28 +16,41 @@
 #                                                                            #
 ##############################################################################
 
+import config
 import wxversion
-try:
-    wxversion.select('2.8')
-except:
-    # continue anyways. 
-    # the pyinstaller binary has problems with wxversion's 
-    # way of searching though the (non-existing) directories.
-    # so just try to use the wx version that is there.
-    pass
+if config.isMac():
+    if wxversion.checkInstalled('2.9'):
+        wxversion.select('2.9') # For Mac it is tweaked and optimized with 2.9
+    else:
+        print "(1) wxPython-2.9 is not installed"
+        
+else:
+    try:
+        if wxversion.checkInstalled('2.8'):
+            wxversion.select('2.8') # On MSW and GTK we stick with 2.8 for now
+        else:
+            print "(1) wxPython-2.8 is not installed"
+        
+    except:
+        # continue anyways. 
+        # in the pyinstaller binary wxversion can screw up and throw exceptions 
+        # so we ignore the error and just use the wx that happens to be available.
+        # TODO: Does this still happen since we now use checkInstalled()?
+        print "(2) wxversion screwed up, this is harmless, ignoring it."
 
 import wx
-import config
 import os
 import tc_client
 import tc_gui
         
 def main():
-    #initialize the configuration
-    config.main()
-    
+    print "(2) wxPython version %s" % wx.version()
     #create the mandatory wx application object
-    app = wx.App(redirect=False)
+    if config.isMac():
+        import tc_mac
+        app = tc_mac.App(redirect=False)
+    else:
+        app = wx.App(redirect=False)
     
     #test for availability of our listening port
     interface = config.get("client", "listen_interface")

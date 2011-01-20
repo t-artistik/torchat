@@ -28,6 +28,7 @@ import textwrap
 import version
 import dlg_settings
 import translations
+import tc_notification
 lang = translations.lang_en
 tb = config.tb
 tb1 = config.tb1
@@ -195,80 +196,6 @@ class TaskbarMenu(wx.Menu):
     def onProfile(self, evt):
         dialog = DlgEditProfile(self.mw, self.mw)
         dialog.ShowModal()
-
-class NotificationWindow(wx.PopupWindow):
-    def __init__(self, mw, text, buddy):
-        wx.PopupWindow.__init__(self, mw)
-        self.panel = wx.Panel(self, style=wx.RAISED_BORDER)
-        sizer = wx.BoxSizer()
-        self.panel.SetSizer(sizer)
-
-        if buddy.profile_avatar_object <> None:
-            bitmap = buddy.profile_avatar_object
-        else:
-            bitmap = wx.Bitmap(os.path.join(config.ICON_DIR, "torchat.png"), wx.BITMAP_TYPE_PNG)
-        static_image = wx.StaticBitmap(self.panel, -1, bitmap)
-        sizer.Add(static_image, 0, wx.ALL, 5 )
-
-        self.label = wx.StaticText(self.panel)
-        font = self.label.GetFont()
-        font.SetPointSize(12)
-        self.label.SetFont(font)
-        self.label.SetLabel(text)
-        sizer.Add(self.label, 0, wx.ALL, 5 )
-
-        wsizer = wx.BoxSizer()
-        wsizer.Add(self.panel, 0, wx.ALL, 0)
-        self.SetSizerAndFit(wsizer)
-        self.Layout()
-
-        # initialize animation
-        cx, cy, maxx, maxy = wx.ClientDisplayRect()
-        self.w, self.h = self.GetSize()
-        self.x_end = maxx - self.w - 20
-        self.y_end = maxy - self.h - 20
-
-        self.x_pos = -self.w
-        self.y_pos = self.y_end
-        self.phase = 0
-
-        self.SetPosition((self.x_pos, self.y_pos))
-        self.Show()
-
-        self.timer = wx.Timer(self, -1)
-        self.Bind(wx.EVT_TIMER, self.onTimer)
-
-        # start animation
-        self.timer.Start(10, True)
-
-
-    def onTimer(self, evt):
-        if self.phase == 0:
-            if self.x_pos < self.x_end:
-                # move right and restart timer
-                self.x_pos += 20
-                self.SetPosition((self.x_pos, self.y_pos))
-                self.timer.Start(10, True)
-                return
-            else:
-                # we are at the right border.
-                # now switch phase and wait a bit
-                self.phase = 1
-                self.timer.Start(5000, True)
-                return
-
-        if self.phase == 1:
-            if self.y_pos > -self.h:
-                # move upwards and restart timer
-                self.y_pos -= 20
-                self.SetPosition((self.x_pos, self.y_pos))
-                self.timer.Start(10, True)
-                return
-            else:
-                # we reached the end of the animation
-                self.Hide()
-                self.Close()
-
 
 
 class PopupMenu(wx.Menu):
@@ -816,7 +743,6 @@ class BuddyList(wx.ListCtrl):
                 self.blinkBuddy(window.buddy, False)
 
         # tooltips:
-        wp = wx.FindWindowAtPointer()
         if self.has_mouse and self.mw.IsActive():
             if time.time() - self.last_mouse_time > 0.5:
                 index, flags = self.HitTest(self.ScreenToClient(wx.GetMousePosition()))
@@ -834,7 +760,7 @@ class BuddyList(wx.ListCtrl):
     def closeToolTip(self):
         if self.tool_tip <> None:
             self.tool_tip.Hide()
-            self.tool_tip.Close()
+            self.tool_tip.Destroy()
             self.tool_tip = None
             self.tool_tip_index = -1
 
@@ -1012,7 +938,8 @@ class BuddyToolTip(wx.PopupWindow):
         self.buddy = list.getBuddyFromIndex(index)
         self.mw = list.mw
 
-        self.panel = wx.Panel(self, style=wx.RAISED_BORDER)
+        self.panel = wx.Panel(self, style=wx.SIMPLE_BORDER)
+        self.panel.SetBackgroundColour(wx.SystemSettings.GetColour(wx.SYS_COLOUR_INFOBK))
         sizer = wx.BoxSizer()
         self.panel.SetSizer(sizer)
 
@@ -1330,12 +1257,7 @@ class ChatWindow(wx.Frame):
 
             if config.getint("gui", "notification_popup"):
                 nt = textwrap.fill("%s:\n%s" % (name, message), 40)
-                try:
-                    NotificationWindow(self.mw, nt, self.buddy)
-                except:
-                    #Some platforms (Mac) dont have wx.PopupWindow
-                    #TODO: need alternative solution
-                    pass
+                tc_notification.notificationWindow(self.mw, nt, self.buddy)
 
         if not self.IsShown():
             self.mw.taskbar_icon.blink()
@@ -1366,6 +1288,7 @@ class ChatWindow(wx.Frame):
         config.set("gui", "chat_window_height", h)
         config.set("gui", "chat_window_height_lower", h - self.splitter.GetSashPosition())
         self.mw.chat_windows.remove(self)
+        self.Hide()
         self.Destroy()
 
     def onKey(self, evt):
@@ -1805,7 +1728,6 @@ class MainWindow(wx.Frame):
         )
         self.conns = []
         self.chat_windows = []
-        self.notification_window = None
         self.buddy_list = tc_client.BuddyList(self.callbackMessage, socket)
 
         self.SetTitle("TorChat: %s" % config.getProfileLongName())
@@ -1831,7 +1753,7 @@ class MainWindow(wx.Frame):
 
         if not config.getint("gui", "open_main_window_hidden"):
             self.Show()
-
+            
         if config.get("logging", "log_file") and config.getint("logging", "log_level"):
             print "(0) logging to file may leave sensitive information on disk"
             hidden = config.getint("gui", "open_chat_window_hidden")

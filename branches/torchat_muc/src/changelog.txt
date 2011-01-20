@@ -1,4 +1,20 @@
-svn trunk
+trunk
+- fixed the focus stealing of the notification window on Windows
+- made the notofication window less obtrusive, more native looking 
+  and make it immediately disappear on mouse contact. 
+- made the animation of the popup faster and look more natural.
+- additional notification methods: knotify, gtknotify, growlnotify, xosd
+- Mac OSX: more Mac conforming UI with menu bar
+- Windows: use stable Tor-0.2.1.29 instead of experimental 0.2.2.20-alpha
+- updated french translation
+
+version 0.9.9.458
+- fixed crash that could happen while torchat was minimized to the tray
+
+version 0.9.9.453
+- fixed connection handshake: timeout for unanswered outgoing connections
+
+version 0.9.9.449
 - speed up the wiping of deleted files and not freeze the GUI while doing it
 
 version 0.9.9.425

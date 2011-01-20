@@ -43,6 +43,7 @@ config_defaults = {
     ("files", "temp_files_custom_dir") : "",
     ("gui", "language") : "en",
     ("gui", "notification_popup") : 1,
+    ("gui", "notification_method") : "generic",
     ("gui", "notification_flash_window") : 1,
     ("gui", "open_main_window_hidden") : 0,
     ("gui", "open_chat_window_hidden") : 0,
@@ -70,6 +71,7 @@ COPYRIGHT = u"Copyright (c) 2007-2010 Bernd Kreuß <prof7bit@gmail.com>"
 
 DEAD_CONNECTION_TIMEOUT = 240
 KEEPALIVE_INTERVAL = 120
+MAX_UNANSWERED_PINGS = 4
 
 SCRIPT_DIR = os.path.abspath(os.path.dirname(sys.argv[0]))
 ICON_DIR = os.path.join(SCRIPT_DIR, "icons")
@@ -81,6 +83,9 @@ def isWindows98():
         return sys.getwindowsversion()[0] == 4 #@UndefinedVariable (make PyDev happy)
     else:
         return False
+        
+def isMac():
+    return sys.platform == 'darwin'
 
 def killProcess(pid):
     try:
@@ -433,3 +438,4 @@ def main():
     #now switch to the configured translation
     importLanguage()
 
+main()
