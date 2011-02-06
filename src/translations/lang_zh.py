@@ -8,14 +8,14 @@
 #                                                                            #
 ##############################################################################
 
-LANGUAGE_CODE = u"cn"
-LANGUAGE_NAME = u"chinese"
-LANGUAGE_NAME_ENGLISH = u"English"
+LANGUAGE_CODE = u"zh"
+LANGUAGE_NAME = u"Chinese" # <-- Please translate, this should be the word "Chinese" in Chinese
+LANGUAGE_NAME_ENGLISH = u"Chinese"
 TRANSLATOR_NAMES = [u"mickeywaley"]
 
 #buttons
 BTN_CANCEL = u"取消"
-BTN_OK = u"Ok"
+BTN_OK = u"Ok"             # <-- Please translate
 BTN_SAVE_AS = u"另存为..."
 BTN_CLOSE = u"关闭"
 
@@ -95,6 +95,8 @@ DEC_MSG_ALREADY_ON_LIST = u"%s 已在您的名单"
 # DEP_TITLE = u"Edit my profile"
 # DEP_NAME = u"Name"
 # DEP_TEXT = u"Text"
+# DEP_SET_AVATAR = u"Set Avatar"
+# DEP_REMOVE_AVATAR = u"Remove Avatar"
 # DEP_AVATAR_SELECT_PNG = u"Select .PNG file to use as your avatar (will be scaled to 64*64, may contain transparency)"
 # DEP_PNG_FILES = u"PNG files"
 # DEP_ALL_FILES = u"All files"
@@ -129,6 +131,7 @@ DSET_GUI_LANGUAGE = u"语言"
 DSET_GUI_OPEN_MAIN_HIDDEN = u"首先，最小化主窗口"
 DSET_GUI_OPEN_CHAT_HIDDEN = u"不要自动打开新窗"
 DSET_GUI_NOTIFICATION_POPUP = u"通知弹出"
+# DSET_GUI_NOTIFICATION_METHOD = u"Notification method"
 DSET_GUI_FLASH_WINDOW = u"闪光的新消息窗口的标题"
 DSET_MISC_TITLE = u"临时目录"
 DSET_MISC_TEMP_IN_DATA = u"内部数据存储临时文件的目录"
