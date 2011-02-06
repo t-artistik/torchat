@@ -316,7 +316,7 @@ class Buddy(object):
         #text must be unicode
         print "(2) storing offline message to %s" % self.address
         file = open(self.getOfflineFileName(), "a")
-        file.write("[delayed] " + text.encode("UTF-8") + "\n")
+        file.write("[delayed] " + text.encode("UTF-8") + os.linesep)
         file.close()
 
     def getOfflineMessages(self):
@@ -467,12 +467,12 @@ class Buddy(object):
                 msg = ProtocolMsg_profile_text(self, text.encode("UTF-8"))
                 msg.send()
 
-    def sendAvatar(self):
+    def sendAvatar(self, send_empty=False):
         if self.isAlreadyPonged():
             print "(2) %s.sendAvatar()" % self.address
             # the GUI has put our own avatar into the BuddyList object, ready for sending.
             # avatar is optional but if sent then both messages must be in the following order:
-            if self.bl.own_avatar_data:
+            if self.bl.own_avatar_data or send_empty:
                 # alpha might be empty (0 bytes) but we must always send it.
                 data = self.bl.own_avatar_data_alpha
                 msg = ProtocolMsg_profile_avatar_alpha(self, data) #send raw binary data
@@ -594,7 +594,7 @@ class BuddyList(object):
         self.own_avatar_data = ""
         self.own_avatar_data_alpha = ""
 
-        print "(1) buddy list initialized"
+        print "(1) BuddList initialized"
 
     def save(self):
         f = open(os.path.join(config.getDataDir(), "buddy-list.txt"), "w")
@@ -1093,9 +1093,10 @@ def ProtocolMsgFromLine(bl, conn, line):
     # a readily initialized message object. 
     try:
         Msg = globals()["ProtocolMsg_%s" % command]
-        return Msg(bl, conn, command, encoded)
     except:
-        return ProtocolMsg(bl, conn, command, encoded)
+        Msg = ProtocolMsg
+    
+    return Msg(bl, conn, command, encoded)
 
 
 class ProtocolMsg(object):
@@ -1517,7 +1518,7 @@ class ProtocolMsg_profile_avatar(ProtocolMsg):
     be completely omitted but IF they are sent then the correct 
     order is first the alpha and then this one"""
     def parse(self):
-        if len(self.text) == 12288 or len(self.text) == 0:
+        if len(self.blob) == 12288 or len(self.blob) == 0:
             self.bitmap = self.blob
         else:
             self.bitmap = None
@@ -1571,6 +1572,7 @@ class ProtocolMsg_message(ProtocolMsg):
     """this is a normal text message. Text is encoded UTF-8"""
     def parse(self):
         self.text = self.blob.decode("UTF-8")
+        self.text = self.text.replace("\r\n", "\n").replace("\r", "\n").replace("\x0b", "\n").replace("\n", os.linesep)
 
     def execute(self):
         #give buddy and text to bl. bl will then call into the gui
@@ -1884,7 +1886,6 @@ class OutConnection(threading.Thread):
         self.running = True
         try:
             self.socket = socks.socksocket()
-            #self.socket.settimeout(60)
             self.socket.setproxy(socks.PROXY_TYPE_SOCKS4,
                                  config.get(TOR_CONFIG, "tor_server"),
                                  config.getint(TOR_CONFIG, "tor_server_socks_port"))
